@@ -1,0 +1,248 @@
+---
+title: "digiviz_data"
+author: "listianingrumr"
+date: "2023-03-05"
+output: html_document
+---
+
+# Libraries
+Load all the libraries needed for this project
+```{r library}
+library(geojsonio)
+library(tidyverse)
+library(tmap)
+library(tmaptools)
+library(rgdal)
+library(broom)
+library(mapview)
+library(crosstalk)
+library(sf)
+library(sp)
+library(spdep)
+library(car)
+library(fs)
+library(janitor)
+library(here)
+library(OpenStreetMap)
+library(RColorBrewer)
+library(spatstat)
+library(readxl)
+```
+
+# Data Loading, Wrangling, and Pre-processing
+**Indonesion Boundary Data**
+Load the NYC Police Precinct data and ptoject it
+```{r idn_prop}
+idn_kab <- st_read("data/geoBoundaries-IDN-ADM2_simplified.geojson")%>%
+  st_transform(.,4326)%>%
+  clean_names()
+```
+Plot the Police Precincts
+```{r plot_comm_dist}
+tmap_mode("plot")
+qtm(idn_prop)
+```
+**Timbulan sampah**
+Read the timbulan sampah data
+```{r sqf}
+timbulan <- read_excel("data/Data_Timbulan_Sampah_SIPSN_KLHK.xlsx", na=" ")%>%
+  clean_names()
+
+timbulan = timbulan[-1,]
+
+Datatypelist <- timbulan %>% 
+  summarise_all(class) %>%
+  pivot_longer(everything(), 
+               names_to="All_variables", 
+               values_to="Variable_class")
+```
+
+```{r}
+timbulandki <- timbulan%>%
+  rename(tahun=sipsn_sistem_informasi_pengelolaan_sampah_nasional)%>%
+  select(tahun,x2,x3,x4,x5)%>%
+  mutate(kab=sub("^..........","", timbulan$x3))%>%
+    filter(str_detect(x2, "DKI Jakarta"))
+
+timbulandki$kab <- replace(timbulandki$kab,timbulandki$kab=="Kep. Seribu","Kepulauan Seribu")
+```
+
+```{r}
+timbulandki$x4 <- as.numeric(timbulandki$x4)
+timbulandki$x5 <- as.numeric(timbulandki$x5)
+
+Datatypelist <- timbulandki %>% 
+  summarise_all(class) %>%
+  pivot_longer(everything(), 
+               names_to="All_variables", 
+               values_to="Variable_class")
+```
+
+```{r}
+timbulan$x2 <- replace(timbulan$x2,timbulan$x2=="DKI Jakarta","Dki Jakarta")
+timbulan$x2 <- replace(timbulan$x2,timbulan$x2=="D.I. Yogyakarta","Daerah Istimewa Yogyakarta")
+```
+
+
+
+```{r}
+timbulan19 <- timbulan%>%
+  filter(str_detect(tahun, "2019"))%>%
+  select(tahun,x2,x4,x5)
+
+timbulan20 <- timbulan%>%
+  filter(str_detect(tahun, "2020"))%>%
+  select(tahun,x2,x4,x5)
+
+timbulan21 <- timbulan%>%
+  filter(str_detect(tahun, "2021"))%>%
+  select(tahun,x2,x4,x5)
+
+timbulan22 <- timbulan%>%
+  filter(str_detect(tahun, "2022"))%>%
+  select(tahun,x2,x4,x5)
+
+timbulanall <- timbulan%>%
+  filter(str_detect(x2, "Jawa Barat"))%>%
+  select(tahun,x2,x4,x5)
+```
+
+```{r}
+timbulandki <- timbulan%>%
+  filter(str_detect(x2, "DKI Jakarta"))
+```
+
+```{r}
+join_timbulan_jabar <- idn_prop %>%
+  left_join(.,
+            timbulanjabar, 
+            by = c("adm1_en"="x2"))
+
+join_timbulan_jabar <- st_as_sf(join_timbulan_jabar, coords = c("X", "Y"), crs = 4326)
+
+st_write(join_timbulan_jabar,
+         "data/timbulanjabar/timbulanjabar.shp", driver = "ESRI Shapefile")
+```
+
+```{r}
+join_timbulan <- idn_prop %>%
+  left_join(.,
+            timbulanall, 
+            by = c("adm1_en"="x2"))
+
+join_timbulan <- st_as_sf(join_timbulan, coords = c("X", "Y"), crs = 4326)
+
+st_write(join_timbulan,
+         "data/join_timbulan/join_timbulan.shp", driver = "ESRI Shapefile")
+```
+
+```{r}
+join_timbulan19 <- idn_prop %>%
+  left_join(.,
+            timbulan19, 
+            by = c("adm1_en"="x2"))
+
+join_timbulan19 <- st_as_sf(join_timbulan19, coords = c("X", "Y"), crs = 4326)
+
+st_write(join_timbulan19,
+         "data/join_timbulan19/join_timbulan19.shp", driver = "ESRI Shapefile")
+```
+
+```{r}
+join_timbulan20 <- idn_prop %>%
+  left_join(.,
+            timbulan20, 
+            by = c("adm1_en"="x2"))
+
+join_timbulan20 <- st_as_sf(join_timbulan20, coords = c("X", "Y"), crs = 4326)
+
+st_write(join_timbulan20,
+         "data/join_timbulan20/join_timbulan20.shp", driver = "ESRI Shapefile")
+```
+
+**Sumber sampah**
+Read the timbulan sampah data
+```{r sqf}
+timbulan <- read_excel("data/Data_Timbulan_Sampah_SIPSN_KLHK.xlsx", na=" ")%>%
+  clean_names()
+
+timbulan = timbulan[-1,]
+
+Datatypelist <- timbulan %>% 
+  summarise_all(class) %>%
+  pivot_longer(everything(), 
+               names_to="All_variables", 
+               values_to="Variable_class")
+```
+
+```{r}
+timbulan <- timbulan%>%
+  rename(tahun=sipsn_sistem_informasi_pengelolaan_sampah_nasional)%>%
+  select(tahun,x3,x4,x5)%>%
+  mutate(kab=sub("^.....","", timbulan$x3))
+```
+
+```{r}
+timbulan$x4 <- as.numeric(timbulan$x4)
+timbulan$x5 <- as.numeric(timbulan$x5)
+
+Datatypelist <- timbulan %>% 
+  summarise_all(class) %>%
+  pivot_longer(everything(), 
+               names_to="All_variables", 
+               values_to="Variable_class")
+```
+
+```{r}
+timbulan19 <- timbulan%>%
+  filter(str_detect(tahun, "2019"))%>%
+  select(tahun,x4,x5,kab)
+
+timbulan20 <- timbulan%>%
+  filter(str_detect(tahun, "2020"))%>%
+  select(tahun,x4,x5,kab)
+
+timbulan21 <- timbulan%>%
+  filter(str_detect(tahun, "2021"))%>%
+  select(tahun,x4,x5,kab)
+
+timbulan22 <- timbulan%>%
+  filter(str_detect(tahun, "2022"))%>%
+  select(tahun,x4,x5,kab)
+```
+
+```{r}
+join_timbulan <- idn_kab %>%
+  left_join(.,
+            timbulan, 
+            by = c("shape_name"="kab"))
+
+join_timbulan <- st_as_sf(join_timbulan, coords = c("X", "Y"), crs = 4326)
+
+st_write(join_timbulan,
+         "data/join_timbulan/join_timbulan.shp", driver = "ESRI Shapefile")
+```
+
+```{r}
+join_timbulan19 <- idn_kab %>%
+  left_join(.,
+            timbulan19, 
+            by = c("shape_name"="kab"))
+
+join_timbulan19 <- st_as_sf(join_timbulan19, coords = c("X", "Y"), crs = 4326)
+
+st_write(join_timbulan19,
+         "data/join_timbulan19/join_timbulan19.shp", driver = "ESRI Shapefile")
+```
+
+```{r}
+join_timbulan20 <- idn_kab %>%
+  left_join(.,
+            timbulan20, 
+            by = c("shape_name"="kab"))
+
+join_timbulan20 <- st_as_sf(join_timbulan20, coords = c("X", "Y"), crs = 4326)
+
+st_write(join_timbulan20,
+         "data/join_timbulan20/join_timbulan20.shp", driver = "ESRI Shapefile")
+```
